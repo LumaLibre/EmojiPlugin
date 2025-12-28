@@ -1,4 +1,4 @@
-package mitality;
+package net.lumamc.nexo;
 
 import com.nexomc.nexo.NexoPlugin;
 import com.nexomc.nexo.api.events.NexoItemsLoadedEvent;

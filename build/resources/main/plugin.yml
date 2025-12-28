@@ -1,8 +1,0 @@
-name: EmojiPlugin
-version: '1.0.0'
-main: mitality.EmojiPlugin
-api-version: '1.21'
-authors: [ Mitality ]
-description: LumaMC Emoji Plugin
-depend: [ Nexo ]
-softdepend: [ LuckPerms ]
