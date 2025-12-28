@@ -1,0 +1,99 @@
+package mitality;
+
+import com.nexomc.nexo.NexoPlugin;
+import com.nexomc.nexo.api.events.NexoItemsLoadedEvent;
+import com.nexomc.nexo.glyphs.Glyph;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextReplacementConfig;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+
+public class EmojiListener implements Listener {
+
+    private static final Pattern GLYPH_TOKEN = Pattern.compile(":[a-zA-Z0-9_-]+:");
+    private final Map<UUID, Map<String, Component>> replacementsByPlayer = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<String>> completionsByPlayer = new ConcurrentHashMap<>();
+
+    @EventHandler
+    public void onChat(AsyncChatEvent event) {
+        final Map<String, Component> repl = replacementsByPlayer.get(event.getPlayer().getUniqueId());
+        if (repl == null || repl.isEmpty()) return;
+
+        Component newMsg = event.message().replaceText(TextReplacementConfig.builder()
+                .match(GLYPH_TOKEN)
+                .replacement((matchResult, builder) -> {
+                    String token = matchResult.group();
+                    Component c = repl.get(token);
+                    return (c != null) ? c : Component.text(token);
+                })
+                .build()
+        );
+
+        event.message(newMsg);
+    }
+
+    public void rebuildFor(Player player) {
+        List<Glyph> allowed = getAllowedGlyphs(player);
+
+        Map<String, Component> replyMap = new HashMap<>(allowed.size());
+        Set<String> newCompletions = new HashSet<>(allowed.size());
+
+        for (Glyph glyph : allowed) {
+            String token = ":" + glyph.getId() + ":";
+            replyMap.put(token, Component.text(glyph.getGlyphTag()));
+            newCompletions.add(token);
+        }
+
+        Set<String> old = completionsByPlayer.get(player.getUniqueId());
+        if (old != null && !old.isEmpty()) {
+            player.removeCustomChatCompletions(old);
+        }
+        if (!newCompletions.isEmpty()) {
+            player.addCustomChatCompletions(newCompletions);
+        }
+
+        replacementsByPlayer.put(player.getUniqueId(), replyMap);
+        completionsByPlayer.put(player.getUniqueId(), newCompletions);
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        rebuildFor(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onNexoReload(NexoItemsLoadedEvent event) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            rebuildFor(player);
+        }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        UUID id = player.getUniqueId();
+        Set<String> old = completionsByPlayer.remove(id);
+        if (old != null && !old.isEmpty()) {
+            player.removeCustomChatCompletions(old);
+        }
+        replacementsByPlayer.remove(id);
+    }
+
+    public static List<Glyph> getAllowedGlyphs(Player player) {
+        return NexoPlugin.instance().getFontManager$core().glyphs()
+                .stream()
+                .filter(Glyph::isEmoji)
+                .filter(glyph -> player.hasPermission(glyph.getPermission()))
+                .toList();
+    }
+
+}
