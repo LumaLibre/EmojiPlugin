@@ -1,4 +1,4 @@
-package mitality;
+package net.lumamc.nexo;
 
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
