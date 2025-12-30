@@ -26,7 +26,7 @@ public class EmojiListener implements Listener {
     private final Map<UUID, Map<String, Component>> replacementsByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Set<String>> completionsByPlayer = new ConcurrentHashMap<>();
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         Map<String, Component> repl = replacementsByPlayer.get(id);
@@ -57,7 +57,7 @@ public class EmojiListener implements Listener {
         return out.toString();
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         final Map<String, Component> repl = replacementsByPlayer.get(event.getPlayer().getUniqueId());
         if (repl == null || repl.isEmpty()) return;
