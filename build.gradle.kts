@@ -18,6 +18,7 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.nexomc:nexo:1.16.1")
     compileOnly("net.luckperms:api:5.4")
+    compileOnly ("net.dmulloy2:ProtocolLib:5.4.0")
 }
 
 

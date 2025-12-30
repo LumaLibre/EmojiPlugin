@@ -1,5 +1,7 @@
 package net.lumamc.nexo;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.events.PacketAdapter;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.event.user.UserDataRecalculateEvent;
@@ -11,16 +13,26 @@ import java.util.UUID;
 
 public final class EmojiPlugin extends JavaPlugin {
 
-    private EmojiListener emojiListener = new EmojiListener();
+    private static EmojiPlugin instance;
+    private EmojiListener emojiListener;
+    private PacketAdapter protocolLibListener;
 
     @Override public void onEnable() {
-        emojiListener = new EmojiListener();
+        instance = this;
+        emojiListener = new EmojiListener(!Bukkit.getPluginManager().isPluginEnabled("ProtocolLib"));
         Bukkit.getPluginManager().registerEvents(emojiListener, this);
+        hookProtocolLibIfPresent();
         hookLuckPermsIfPresent();
     }
 
     @Override public void onDisable() {
+        protocolLibListener = null;
         emojiListener = null;
+        instance = null;
+    }
+
+    public static EmojiPlugin getInstance() {
+        return instance;
     }
 
     private void hookLuckPermsIfPresent() {
@@ -48,4 +60,17 @@ public final class EmojiPlugin extends JavaPlugin {
         });
         getLogger().info("Hooked LuckPerms permission-change events.");
     }
+
+    private void hookProtocolLibIfPresent() {
+        if (!Bukkit.getPluginManager().isPluginEnabled("ProtocolLib")) {
+            getLogger().info("ProtocolLib not found - skipping packet-level chat hook.");
+            return;
+        }
+
+        protocolLibListener = emojiListener.createProtocolLibListener();
+        ProtocolLibrary.getProtocolManager().addPacketListener(protocolLibListener);
+
+        getLogger().info("Hooked ProtocolLib packet-level chat.");
+    }
+
 }

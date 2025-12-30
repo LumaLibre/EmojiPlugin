@@ -1,5 +1,10 @@
 package net.lumamc.nexo;
 
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.ListenerPriority;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.nexomc.nexo.NexoPlugin;
 import com.nexomc.nexo.api.events.NexoItemsLoadedEvent;
 import com.nexomc.nexo.glyphs.Glyph;
@@ -7,6 +12,7 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TextReplacementConfig;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -21,6 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class EmojiListener implements Listener {
+
+    static boolean replaceChat;
+    public EmojiListener(boolean replaceChat) {
+        this.replaceChat = replaceChat;
+    }
 
     private static final Pattern GLYPH_TOKEN = Pattern.compile(":[a-zA-Z0-9_-]+:");
     private final Map<UUID, Map<String, Component>> replacementsByPlayer = new ConcurrentHashMap<>();
@@ -59,6 +70,7 @@ public class EmojiListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
+        if (!replaceChat) return; // replace on packet level instead
         final Map<String, Component> repl = replacementsByPlayer.get(event.getPlayer().getUniqueId());
         if (repl == null || repl.isEmpty()) return;
 
@@ -73,6 +85,44 @@ public class EmojiListener implements Listener {
         );
 
         event.message(newMsg);
+    }
+
+    public PacketAdapter createProtocolLibListener() {
+        return new PacketAdapter(EmojiPlugin.getInstance(), ListenerPriority.LOWEST, PacketType.Play.Server.SYSTEM_CHAT, PacketType.Play.Server.CHAT) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                Map<String, Component> reply = replacementsByPlayer.get(event.getPlayer().getUniqueId());
+                if (reply == null || reply.isEmpty()) return;
+
+                WrappedChatComponent wcc = event.getPacket().getChatComponents().readSafely(0);
+                if (wcc == null) return;
+
+                String json = wcc.getJson();
+                if (json == null || json.indexOf(':') == -1) return;
+
+                Component comp;
+                try {
+                    comp = GsonComponentSerializer.gson().deserialize(json);
+                } catch (Exception ignored) {
+                    return;
+                }
+
+                Component replaced = comp.replaceText(TextReplacementConfig.builder()
+                        .match(GLYPH_TOKEN)
+                        .replacement((matchResult, builder) -> {
+                            String token = matchResult.group();
+                            Component c = reply.get(token);
+                            return (c != null) ? c : Component.text(token);
+                        })
+                        .build()
+                );
+
+                String newJson = GsonComponentSerializer.gson().serialize(replaced);
+                if (!newJson.equals(json)) {
+                    event.getPacket().getChatComponents().write(0, WrappedChatComponent.fromJson(newJson));
+                }
+            }
+        };
     }
 
     public void rebuildFor(Player player) {
