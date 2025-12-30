@@ -5,11 +5,14 @@ import com.nexomc.nexo.api.events.NexoItemsLoadedEvent;
 import com.nexomc.nexo.glyphs.Glyph;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TextReplacementConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -23,7 +26,38 @@ public class EmojiListener implements Listener {
     private final Map<UUID, Map<String, Component>> replacementsByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, Set<String>> completionsByPlayer = new ConcurrentHashMap<>();
 
-    @EventHandler
+    @EventHandler(ignoreCancelled = true)
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        UUID id = event.getPlayer().getUniqueId();
+        Map<String, Component> repl = replacementsByPlayer.get(id);
+        if (repl == null || repl.isEmpty()) return;
+
+        String msg = event.getMessage(); // e.g. "/sc hello :sob:"
+        String newMsg = replaceEmojiTokensInString(msg, repl);
+
+        if (!newMsg.equals(msg)) {
+            event.setMessage(newMsg);
+        }
+    }
+
+    private static String replaceEmojiTokensInString(String input, Map<String, Component> repl) {
+        if (input.indexOf(':') == -1) return input; // no emoji present
+        var m = GLYPH_TOKEN.matcher(input);
+        if (!m.find()) return input;
+
+        StringBuilder out = new StringBuilder();
+        do {
+            String token = m.group();
+            Component c = repl.get(token);
+            String replacement = (c instanceof TextComponent tc) ? tc.content() : token;
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(replacement));
+        } while (m.find());
+
+        m.appendTail(out);
+        return out.toString();
+    }
+
+    @EventHandler(ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
         final Map<String, Component> repl = replacementsByPlayer.get(event.getPlayer().getUniqueId());
         if (repl == null || repl.isEmpty()) return;
