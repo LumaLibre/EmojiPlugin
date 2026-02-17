@@ -4,6 +4,7 @@ main: net.lumamc.nexo.EmojiPlugin
 api-version: '1.21'
 author: Mitality
 description: LumaMC Nexo-based Emoji Plugin
+folia-supported: true
 depend:
   - Nexo
 softdepend:

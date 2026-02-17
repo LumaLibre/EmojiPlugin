@@ -51,12 +51,12 @@ public final class EmojiPlugin extends JavaPlugin {
 
         lp.getEventBus().subscribe(this, UserDataRecalculateEvent.class, (event) -> {
             UUID uuid = event.getUser().getUniqueId();
-            Bukkit.getScheduler().runTask(this, () -> {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null && player.isOnline()) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                player.getScheduler().run(this, task -> {
                     emojiListener.rebuildFor(player);
-                }
-            });
+                }, null);
+            }
         });
         getLogger().info("Hooked LuckPerms permission-change events.");
     }
