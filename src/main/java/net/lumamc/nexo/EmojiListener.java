@@ -133,7 +133,7 @@ public class EmojiListener implements Listener {
 
         for (Glyph glyph : allowed) {
             String token = ":" + glyph.getId() + ":";
-            replyMap.put(token, Component.text(glyph.getGlyphTag()));
+            replyMap.put(token, glyph.getComponent());
             newCompletions.add(token);
         }
 
